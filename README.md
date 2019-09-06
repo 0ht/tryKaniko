@@ -2,50 +2,69 @@
 
 Kanikoは、コンテナーやk8sクラスター内部でコンテナーイメージをビルドしてくれるツール。
 
-Kanikoは、コンテナーイメージ：gcr.io/kaniko-project/executor
-として動作して、DockerfileからイメージをビルドしてレジストリーにPUSHする。
+Kanikoは、コンテナーイメージ`gcr.io/kaniko-project/executor`として動作して、DockerfileからイメージをビルドしてレジストリーにPUSHしてくれる。
 
 Kanikoを動かすために必要なものは、
+- build context(ビルドする場所)
+- Kanikoのインスタンス
 
-build context(ビルドする場所)
-Kanikoのインスタンス
+**build context**としては、以下が利用可能
+- GCS Bucket
+- S3 Bucket
+- Local Directory
+- Git Repository
 
-build contextとしては、以下が利用可能
-・GCS Bucket
-・S3 Bucket
-・Local Directory
-・Git Repository
+また、Kanikoを動かす方法としては以下が利用可能
+- In a Kubernetes cluster
+- In gVisor
+- In Google Cloud Build
+- In Docker
 
-Kanikoを動かす方法としては以下が利用可能
-・In a Kubernetes cluster
-・In gVisor
-・In Google Cloud Build
-・In Docker
+今回は、`Git Repository` と`ローカルのk8sクラスター`を利用して試行してみる。
 
-今回は、Git Repository とローカルのk8sクラスターを利用して試行してみる。
-
-Kubernetsで動かすのに必要な事
+Kubernetsで動かすのに必要なものは、
 1. k8s
 2. Kubernetes secret
 3. build context
    
+
 1.のk8sは、ローカルのDocker Desktop提供のものを利用
 
-2.
+2.は以下の様にして作成
+```
 kubectl create secret docker-registry regcred \
   --docker-server=https://index.docker.io/v1/ \
   --docker-username=ohtom \
   --docker-password=XXXXX \
   --docker-email=oh.tomtom@gmail.com
-
-  (⎈ |dev.kops.k8s.local:istio-system)eb82649:transfer eb82649@jp.ibm.com$ kubectl create secret docker-registry regcred \
+```
+実際のsecret作成の実行結果。
+```
+(⎈ |dev.kops.k8s.local:istio-system)eb82649:transfer eb82649@jp.ibm.com$ kubectl create secret docker-registry regcred \
 >   --docker-server=https://index.docker.io/v1/ \
 >   --docker-username=ohtom \
 >   --docker-password=XXXXX \
 >   --docker-email=oh.tomtom@gmail.com
 secret/regcred created
+```
 
+実行してみる。
+```
+(⎈ |docker-desktop:default)eb82649:tryKaniko eb82649@jp.ibm.com$ k apply -f kaniko-local-git.yaml 
+pod/kaniko-git created
+(⎈ |docker-desktop:default)eb82649:tryKaniko eb82649@jp.ibm.com$ k get pods
+NAME                                   READY   STATUS              RESTARTS   AGE
+echo-hello-world-task-run-pod-b8c449   0/1     Completed           0          15d
+kaniko-git                             0/1     ContainerCreating   0          2s
+remotecall-git                         0/1     Error               0          12d
+test-git-branch-pod-869080             0/2     Completed           0          15d
+test-git-ref-pod-d0a14a                0/2     Completed           0          15d
+test-git-tag-pod-e24497                0/2     Completed           0          15d
 
+```
+
+結果確認。
+```
 (⎈ |docker-desktop:default)eb82649:tryKaniko eb82649@jp.ibm.com$ kubectl logs -f kaniko-git
 Enumerating objects: 8, done.
 Counting objects: 100% (8/8), done.
@@ -85,4 +104,3 @@ REPOSITORY                                                        TAG           
 ohtom/trykaniko                                                   git                 39a2460b7b09        39 minutes ago      64.2MB
 
 (⎈ |docker-desktop:default)eb82649:tryKaniko eb82649@jp.ibm.com$ docker run ohtom/trykaniko:git
-Hello World
